@@ -40,6 +40,19 @@ class Parser:
             #тут завернуть в новый поток
             self.queue.put(strategy.parseRSS()) 
 
+
+class FileWriter:
+    def __init__(self, queue):
+        self.queue = queue
+
+    def writeFileFromQueue(self):
+        while True:
+            items = self.queue.get() 
+            with open("output.txt", 'a') as file:
+                for item in items:
+                    file.write(" ".join(item) + '\n')
+            self.queue.task_done()
+
 strategy = TUTBYStrategy('https://news.tut.by/rss/index.rss')
 strategy = OnlinerStrategy('https://people.onliner.by/feed')
 parser = Parser(strategy)
