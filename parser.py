@@ -19,7 +19,6 @@ class TUTBYStrategy(AbstractStrategy):
 
     def parseRSS(self):
         data = feedparser.parse(self.url)
-        print("tutby")
         return [(item['title'], item['published']) for item in data["entries"]]
 
 
@@ -29,10 +28,8 @@ class OnlinerStrategy(AbstractStrategy):
     
     def parseRSS(self):
         data = feedparser.parse(self.url)
-        print("onliner")
         return [(item['title'], item['published']) for item in data["entries"]]
         
-
 
 class Parser:
     def __init__(self, strategies, queue):
@@ -41,13 +38,9 @@ class Parser:
 
     def collectData(self):
         self.threads =[threading.Thread(target=self.data_queue.put(strategy.parseRSS())) 
-        for strategy in self.strategies]
-        # for strategy in self.strategies:
-        #     #тут завернуть в новый поток
-        #     self.queue.put(strategy.parseRSS()) 
+                       for strategy in self.strategies]
         for thread in self.threads:
             thread.start()
-
 
 
 class FileWriter:
@@ -56,7 +49,6 @@ class FileWriter:
 
     def writeFileFromQueue(self):
         while True:
-            print("file write")
             items = self.queue.get() 
             with open("output.txt", 'a', encoding="utf-8") as file:
                 for item in items:
@@ -66,7 +58,6 @@ class FileWriter:
     def startWritingToFile(self):
         self.thread = threading.Thread(target=self.writeFileFromQueue, daemon=True)
         self.thread.start()
-
 
 
 class Manager:
