@@ -3,13 +3,14 @@ import feedparser
 from pprint import pprint 
 import threading, Queue
 
-class AbstractStrategy:
+class AbstractStrategy(ABC):
     def __init__(self, url):
         self.url = url
 
     @abstractmethod
     def parseRSS(self):
         pass
+
 
 
 class TUTBYStrategy(AbstractStrategy):
@@ -36,9 +37,15 @@ class Parser:
         self.data_queue = queue
 
     def collectData(self):
-        for strategy in self.strategies:
-            #тут завернуть в новый поток
-            self.queue.put(strategy.parseRSS()) 
+        threads =[threading.Thread(target=self.queue.put(strategy.parseRSS()))  for strategy in self.strategies]
+        # for strategy in self.strategies:
+        #     #тут завернуть в новый поток
+        #     self.queue.put(strategy.parseRSS()) 
+        for thread in threads:
+            thread.start()
+        
+        for thread in threads:
+            thread.join()
 
 
 class FileWriter:
@@ -52,6 +59,12 @@ class FileWriter:
                 for item in items:
                     file.write(" ".join(item) + '\n')
             self.queue.task_done()
+    
+    def startWritingTOFile(self):
+        thread = threading.Thread(target=writeFileFromQueue)
+        thread.start()
+        thread.join()
+
 
 strategy = TUTBYStrategy('https://news.tut.by/rss/index.rss')
 strategy = OnlinerStrategy('https://people.onliner.by/feed')
