@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import feedparser
 from pprint import pprint 
-import threading, Queue
+import threading, queue
 
 class AbstractStrategy(ABC):
     def __init__(self, url):
@@ -19,6 +19,7 @@ class TUTBYStrategy(AbstractStrategy):
 
     def parseRSS(self):
         data = feedparser.parse(self.url)
+        print("tutby")
         return [(item['title'], item['published']) for item in data["entries"]]
 
 
@@ -28,7 +29,9 @@ class OnlinerStrategy(AbstractStrategy):
     
     def parseRSS(self):
         data = feedparser.parse(self.url)
+        print("onliner")
         return [(item['title'], item['published']) for item in data["entries"]]
+        
 
 
 class Parser:
@@ -37,15 +40,14 @@ class Parser:
         self.data_queue = queue
 
     def collectData(self):
-        threads =[threading.Thread(target=self.queue.put(strategy.parseRSS()))  for strategy in self.strategies]
+        self.threads =[threading.Thread(target=self.data_queue.put(strategy.parseRSS())) 
+        for strategy in self.strategies]
         # for strategy in self.strategies:
         #     #тут завернуть в новый поток
         #     self.queue.put(strategy.parseRSS()) 
-        for thread in threads:
+        for thread in self.threads:
             thread.start()
-        
-        for thread in threads:
-            thread.join()
+
 
 
 class FileWriter:
@@ -54,19 +56,32 @@ class FileWriter:
 
     def writeFileFromQueue(self):
         while True:
+            print("file write")
             items = self.queue.get() 
-            with open("output.txt", 'a') as file:
+            with open("output.txt", 'a', encoding="utf-8") as file:
                 for item in items:
                     file.write(" ".join(item) + '\n')
             self.queue.task_done()
     
-    def startWritingTOFile(self):
-        thread = threading.Thread(target=writeFileFromQueue)
-        thread.start()
-        thread.join()
+    def startWritingToFile(self):
+        self.thread = threading.Thread(target=self.writeFileFromQueue, daemon=True)
+        self.thread.start()
 
 
-strategy = TUTBYStrategy('https://news.tut.by/rss/index.rss')
-strategy = OnlinerStrategy('https://people.onliner.by/feed')
-parser = Parser(strategy)
-parser.getData()
+
+class Manager:
+    def __init__(self):
+        q = queue.Queue()
+        strategyTUTBY = TUTBYStrategy('https://news.tut.by/rss/index.rss')
+        strategyOnliner = OnlinerStrategy('https://people.onliner.by/feed')
+        self.parser = Parser([strategyTUTBY, strategyOnliner], q)
+        self.writer = FileWriter(q)
+
+    def process(self):
+        self.writer.startWritingToFile()
+        self.parser.collectData()
+
+        self.writer.queue.join()
+
+manager = Manager()
+manager.process()
